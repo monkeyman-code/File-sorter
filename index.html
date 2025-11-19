@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File sorter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- 1. General Setup: RETRO ARCADE --- */
+        body {
+            /* Use the pixel font */
+            font-family: 'Press Start 2P', cursive;
+            background-color: #000000; /* Black background for arcade feel */
+            color: #ffffff; /* White text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* --- 2. Game Container --- */
+        #game-container {
+            width: 640px; /* Arcade friendly dimensions */
+            height: 720px;
+            background-color: #000000;
+            /* Retro border effect */
+            border: 8px solid #c0c0c0; 
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5), inset 0 0 10px #00ff00; /* Neon glow */
+            position: relative;
+            overflow: hidden;
+            touch-action: none; 
+            border-radius: 0;
+        }
+
+        #game-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            /* Simple, dark game background */
+            background: linear-gradient(to bottom, #101010, #303030 70%); 
+        }
+
+        /* --- 3. UI Elements: SCORING & LIVES --- */
+        #score-board, #lives-display {
+            position: absolute;
+            top: 10px;
+            font-size: 14px; /* Smaller pixel font size */
+            font-weight: normal;
+            z-index: 10;
+        }
+        
+        #score-board {
+            left: 10px;
+            color: #00ff00; /* Bright Green */
+        }
+        
+        #lives-display {
+            right: 10px;
+            color: #ff0000; /* Bright Red */
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: #ffff00; /* Yellow */
+            z-index: 10;
+            padding: 0 5px;
+        }
+        
+        /* Message Popups: START/END SCREENS */
+        .message-popup {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: none; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .message-popup h2 { font-size: 30px; margin: 0; color: #00ffff; }
+        .message-popup p { 
+            font-size: 12px; 
+            margin: 10px 0 25px 0; 
+            line-height: 1.5;
+            padding: 0 20px;
+        }
+        
+        #start-button, #restart-button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px; 
+            padding: 10px 20px; 
+            border: 4px solid #ffffff; /* Blocky border */
+            border-radius: 0; /* No rounding */
+            background-color: #ff8c00; /* Orange Button */
+            color: black; 
+            font-weight: normal; 
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        #start-button:hover, #restart-button:hover { 
+            background-color: #ff4500; /* Darker Orange on hover */
+        }
+
+        /* Start Screen Custom Text Styling */
+        .group-details {
+            font-size: 10px;
+            color: #c0c0c0;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+        .powered-by {
+            font-size: 8px;
+            color: #00ff00;
+            margin-top: 20px;
+        }
+
+        /* --- 5. Game Objects: Files (Uniform Color for difficulty) --- */
+        .file {
+            position: absolute;
+            width: 80px; 
+            height: 25px;
+            padding: 4px;
+            line-height: 25px;
+            text-align: center;
+            border: 3px solid #ffffff; /* Uniform White Border */
+            border-radius: 0;
+            font-weight: normal;
+            font-size: 10px;
+            user-select: none;
+            cursor: grab;
+            box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
+            background-color: #2e2e2e; /* Uniform Dark Background */
+            color: #ffffff; /* Uniform White Text */
+        }
+        .file:active {
+            cursor: grabbing;
+        }
+        
+        /* --- 6. Game Objects: Boxes (Uniform Color for difficulty) --- */
+        .box-container {
+            position: absolute;
+            bottom: 50px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .box {
+            width: 170px;
+            height: 80px;
+            border: 4px solid #ffffff; /* Uniform White Border */
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: normal;
+            background-color: #333333; /* Dark box base */
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+            padding-top: 5px;
+            text-align: center;
+            color: #00ffff; /* Uniform Cyan Text for readability */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <div id="game-area">
+            
+            <div class="box-container">
+                <div class="box" id="box-image" data-category="image"> IMAGE BIN</div>
+                <div class="box" id="box-video" data-category="video"> VIDEO BIN</div>
+                <div class="box" id="box-document" data-category="document"> DOC BIN</div>
+            </div>
+
+        </div>
+
+        <div id="score-board">
+            SCORE <span id="score-value">0</span> | WAVE <span id="wave-value">1</span>
+        </div>
+        <div id="lives-display">
+            LIVES: <span id="lives-value">5</span>
+        </div>
+        <p id="instructions">
+            DRAG FILES TO THE CORRECT BIN BEFORE THEY HIT THE BOTTOM!
+        </p>
+
+        <div class="message-popup" id="wave-message" style="display: none;">
+            <h2>WAVE CLEARED!</h2>
+            <p>PREPARE FOR NEXT WAVE</p>
+        </div>
+
+        <div class="message-popup" id="start-screen" style="display: flex;">
+            <h2>FILE SORTER 8-BIT</h2>
+            <p class="group-details">
+                Made by group 3:<br>
+                Mayor, Marjorie Cielo M.<br>
+                Omallao, Reymark<br>
+                Raymundo, Erica<br>
+                Tayo, Jeziel<br>
+                Duran, Cherry Mae
+            </p>
+            <p>SORT THE FALLING FILES. LOSE A LIFE FOR A MISS OR MIS-SORT. GET READY TO COMPUTE!</p>
+            <button id="start-button">START</button>
+            <p class="powered-by">Powered by monkeyman.inc</p>
+        </div>
+
+        <div class="message-popup" id="end-screen" style="display: none;">
+            <h2 id="end-title">GAME OVER!</h2>
+            <p id="end-score">FINAL SCORE: 0</p>
+            <button id="restart-button">RESTART</button>
+        </div>
+
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+
+            // --- 1. Get DOM Elements ---
+            const gameArea = document.getElementById('game-area');
+            const scoreValue = document.getElementById('score-value');
+            const waveValue = document.getElementById('wave-value');
+            const livesValue = document.getElementById('lives-value'); 
+
+            // Boxes (Targets)
+            const boxDoc = document.getElementById('box-document');
+            const boxPic = document.getElementById('box-image');
+            const boxVid = document.getElementById('box-video');
+            const boxes = [boxDoc, boxPic, boxVid];
+
+            // Screens & Buttons
+            const startScreen = document.getElementById('start-screen');
+            const endScreen = document.getElementById('end-screen');
+            const waveMessage = document.getElementById('wave-message');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const endTitle = document.getElementById('end-title');
+            const endScore = document.getElementById('end-score');
+
+            // --- 2. Game State Variables ---
+            let score = 0;
+            let lives = 0; 
+            let wave = 1;
+            let filesInWave = 0;
+            let filesSpawned = 0;
+            let filesCaught = 0;
+            let currentSpeed = 0;
+            let spawnInterval = 0;
+
+            let activeFiles = []; 
+            let gameLoopId = null;
+            let spawnTimer = null;
+            let gameActive = false;
+            let gameWidth;
+            
+            // Drag and Drop Variables
+            let draggedFile = null;
+            let mouseOffsetX = 0;
+            let mouseOffsetY = 0;
+
+            // Game config
+            const WAVE_CONFIG = [
+                { files: 10, speed: 1.5, interval: 1800 }, 
+                { files: 12, speed: 2, interval: 1600 },   
+                { files: 15, speed: 2.5, interval: 1400 }, 
+                { files: 18, speed: 3, interval: 1200 },   
+                { files: 25, speed: 3.5, interval: 1000 } 
+            ];
+
+            // File Types and Categories
+            const FILE_TYPES = [
+                { type: '.PDF', category: 'document' },
+                { type: '.TXT', category: 'document' },
+                { type: '.PPT', category: 'document' },
+                
+                { type: '.JPG', category: 'image' },
+                { type: '.PNG', category: 'image' },
+                { type: '.GIF', category: 'image' },
+
+                { type: '.MP4', category: 'video' },
+                { type: '.FLV', category: 'video' },
+                { type: '.MOV', category: 'video' }
+            ];
+
+            // --- 3. Event Listeners ---
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+
+            // --- 4. Core Game Logic ---
+
+            function startGame() {
+                gameWidth = gameArea.clientWidth; 
+                
+                score = 0;
+                lives = 5; 
+                wave = 1;
+                activeFiles = [];
+                gameActive = true;
+                
+                startScreen.style.display = 'none';
+                endScreen.style.display = 'none';
+                waveMessage.style.display = 'none';
+
+                // Ensure all previous files are removed
+                gameArea.querySelectorAll('.file').forEach(file => file.remove());
+                stopGameLoop();
+
+                setupWave();
+                startGameLoop();
+            }
+
+            function setupWave() {
+                const config = WAVE_CONFIG[wave - 1];
+                filesInWave = config.files;
+                currentSpeed = config.speed;
+                spawnInterval = config.interval;
+                
+                filesSpawned = 0;
+                filesCaught = 0;
+
+                updateUI();
+            }
+
+            function startGameLoop() {
+                if (gameLoopId) cancelAnimationFrame(gameLoopId); 
+                if (spawnTimer) clearInterval(spawnTimer); 
+                
+                gameLoopId = requestAnimationFrame(gameLoop);
+                spawnTimer = setInterval(spawnFile, spawnInterval);
+            }
+
+            function stopGameLoop() {
+                if (gameLoopId) cancelAnimationFrame(gameLoopId);
+                if (spawnTimer) clearInterval(spawnTimer);
+                gameLoopId = null;
+                spawnTimer = null;
+            }
+
+            function gameLoop() {
+                if (!gameActive) return;
+
+                for (let i = activeFiles.length - 1; i >= 0; i--) {
+                    const file = activeFiles[i];
+                    
+                    if (file === draggedFile) continue; 
+                    
+                    // 1. Move file
+                    let top = parseFloat(file.style.top);
+                    file.style.top = (top + currentSpeed) + 'px';
+
+                    const fileRect = file.getBoundingClientRect();
+                    const gameRect = gameArea.getBoundingClientRect();
+
+                    // 2. Check for miss (hit the bottom)
+                    if (fileRect.top > gameRect.bottom) {
+                        handleCatch(file, null); // Miss (null category)
+                        
+                        // Check for Game Over immediately after a miss
+                        if (lives <= 0) {
+                            endGame(false, "GAME OVER - INSERT COIN"); 
+                            return; 
+                        }
+                    }
+                }
+                gameLoopId = requestAnimationFrame(gameLoop);
+            }
+
+            function spawnFile() {
+                if (filesSpawned >= filesInWave) {
+                    clearInterval(spawnTimer); 
+                    spawnTimer = null;
+                    return;
+                }
+
+                filesSpawned++;
+                
+                const file = document.createElement('div');
+                const fileType = FILE_TYPES[Math.floor(Math.random() * FILE_TYPES.length)];
+                
+                file.className = 'file';
+                file.textContent = fileType.type;
+                file.dataset.category = fileType.category; 
+
+                // Add drag listeners
+                file.addEventListener('mousedown', startDrag);
+                file.addEventListener('touchstart', startDrag);
+
+                // Position it (Crucial for falling)
+                const fileWidth = 88; 
+                const maxLeft = gameWidth - fileWidth; 
+                file.style.left = (Math.random() * maxLeft) + 'px';
+                file.style.top = '-50px'; // Set initial top position
+
+                gameArea.appendChild(file);
+                activeFiles.push(file);
+            }
+
+            // --- 5. Drag and Drop Logic ---
+
+            function startDrag(e) {
+                e.preventDefault();
+                if (!gameActive || draggedFile) return;
+
+                const file = e.currentTarget;
+                draggedFile = file;
+                draggedFile.style.zIndex = 20; 
+
+                const rect = draggedFile.getBoundingClientRect();
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                mouseOffsetX = clientX - rect.left;
+                mouseOffsetY = clientY - rect.top;
+
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', endDrag);
+                document.addEventListener('touchmove', onDrag);
+                document.addEventListener('touchend', endDrag);
+            }
+
+            function onDrag(e) {
+                if (!draggedFile) return;
+
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+
+                const gameRect = gameArea.getBoundingClientRect();
+                const fileWidth = draggedFile.clientWidth;
+                const fileHeight = draggedFile.clientHeight;
+
+                let newX = clientX - gameRect.left - mouseOffsetX;
+                let newY = clientY - gameRect.top - mouseOffsetY;
+
+                newX = Math.max(0, Math.min(newX, gameWidth - fileWidth));
+                newY = Math.max(0, Math.min(newY, gameArea.clientHeight - fileHeight));
+
+                draggedFile.style.left = newX + 'px';
+                draggedFile.style.top = newY + 'px';
+            }
+
+            function endDrag(e) {
+                if (!draggedFile) return;
+                
+                // Clean up handlers
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', endDrag);
+                document.removeEventListener('touchmove', onDrag);
+                document.removeEventListener('touchend', endDrag);
+
+                draggedFile.style.zIndex = 1; 
+
+                // Collision check against static boxes
+                const fileRect = draggedFile.getBoundingClientRect();
+                let droppedCategory = null;
+                
+                for (const box of boxes) {
+                    if (isColliding(fileRect, box.getBoundingClientRect())) {
+                        droppedCategory = box.dataset.category; 
+                        break;
+                    }
+                }
+
+                handleCatch(draggedFile, droppedCategory);
+                draggedFile = null;
+
+                // Check for Game Over immediately after a catch/miss
+                if (lives <= 0) {
+                    endGame(false, "GAME OVER - INSERT COIN");
+                }
+            }
+
+
+            // --- 6. Handlers and Helpers ---
+
+            function handleCatch(file, droppedCategory) {
+                filesCaught++;
+                
+                const fileCategory = file.dataset.category; 
+                
+                if (fileCategory === droppedCategory) {
+                    score += 10; 
+                } else {
+                    score -= 5;
+                    lives -= 1; 
+                }
+
+                removeFile(file);
+                updateUI();
+
+                // Check for wave end
+                if (filesCaught === filesInWave) {
+                    checkWaveEnd();
+                }
+            }
+
+            function checkWaveEnd() {
+                stopGameLoop(); 
+
+                if (wave === WAVE_CONFIG.length) {
+                    endGame(true, "VICTORY! ALL FILES SORTED!"); 
+                } else {
+                    wave++;
+                    showWaveMessage();
+                }
+            }
+
+            function showWaveMessage() {
+                waveMessage.style.display = 'flex';
+                setTimeout(() => {
+                    waveMessage.style.display = 'none';
+                    setupWave();
+                    startGameLoop();
+                }, 3000); 
+            }
+
+            function endGame(didWin, message) {
+                gameActive = false;
+                stopGameLoop();
+
+                endTitle.textContent = message;
+                endScore.textContent = `FINAL SCORE: ${score}`;
+                endScreen.style.display = 'flex';
+            }
+
+            function isColliding(rect1, rect2) {
+                return !(
+                    rect1.right < rect2.left ||
+                    rect1.left > rect2.right ||
+                    rect1.bottom < rect2.top ||
+                    rect1.top > rect2.bottom
+                );
+            }
+
+            function removeFile(file) {
+                file.remove();
+                activeFiles = activeFiles.filter(f => f !== file);
+            }
+
+            function updateUI() {
+                scoreValue.textContent = score;
+                waveValue.textContent = wave;
+                livesValue.textContent = lives; 
+            }
+        });
+    </script>
+</body>
+</html>
